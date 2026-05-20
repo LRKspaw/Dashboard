@@ -1,7 +1,7 @@
 # PEA Dashboard Tracker
 
 ## Description
-Une application web complète pour suivre, analyser et projeter les performances de mon Plan d'Épargne en Actions (PEA). Ce projet automatise la récupération des données à partir des relevés bancaires (avis d'opérés, relevés de compte) et croise ces informations avec les données de marché en temps réel pour offrir un tableau de bord détaillé et des projections financières.
+Une application web complète pour suivre, analyser et projeter les performances d'un Plan d'Épargne en Actions (PEA). Ce projet automatise la récupération des données à partir des relevés bancaires (avis d'opérés, relevés de compte) et croise ces informations avec les données de marché en temps réel pour offrir un tableau de bord détaillé et des projections financières.
 
 ## Fonctionnalités Principales
 
@@ -15,25 +15,30 @@ Une application web complète pour suivre, analyser et projeter les performances
 - Paramètres ajustables dynamiquement (versements mensuels futurs, taux de rendement estimé, etc.).
 
 ### Moteur de Données
-- **Parsing automatisé :** Extraction des opérations et virements depuis les PDF (relevés de comptes, avis d'opérés, relevés de titres).
+- **Parsing automatisé :** Extraction des opérations et virements depuis les documents PDF (relevés de comptes, avis d'opérés, relevés de titres).
 - **Mise à jour incrémentale :** Ajout mensuel des nouveaux documents pour actualiser la base.
-- **Données de marché :** Actualisation régulière des cours des ETF via l'API Yahoo Finance.
+- **Données de marché :** Actualisation régulière des cours des ETF via l'API `yfinance`.
 
-### Administration
-- Système de login sécurisé.
+### Administration & Sécurité
+- Système d'authentification robuste via API.
 - Gestion multi-utilisateurs (dimensionné pour ~10 utilisateurs).
+- Isolation stricte des données utilisateurs via Row-Level Security (RLS).
 
-## Stack Technique
-- **Backend & Frontend :** Python (Framework à définir : Streamlit / FastAPI)
+## Architecture & Stack Technique
+- **Backend (API & Logique métier) :** FastAPI (Python)
+- **Frontend (Interface & Dataviz) :** Streamlit (Python)
 - **Base de données :** PostgreSQL
-- **Données Financières :** `yfinance`
-- **Déploiement :** Docker & Docker Compose (hébergé sur VM Proxmox)
+- **Déploiement :** Docker & Docker Compose
+- **Infrastructure :** Hébergé sur VM Proxmox
+- **Exposition Réseau :** Reverse Proxy (Nginx Proxy Manager / Traefik) avec certificats SSL et domaine dédié.
 
-## Roadmap & Todo
-- [ ] Mettre en place l'environnement de développement et le repo Git.
-- [ ] Modéliser la base de données PostgreSQL.
+## Roadmap
+
+- [ ] Initialiser l'environnement de développement et le repo Git.
+- [ ] Modéliser la base de données PostgreSQL et configurer les règles RLS (Row-Level Security).
+- [ ] Développer l'API FastAPI (Authentification et Endpoints de données).
 - [ ] Développer le script de parsing des PDF (Avis d'opérés Fortuneo/autre).
-- [ ] Intégrer `yfinance` pour récupérer les cours historiques et actuels.
-- [ ] Créer les vues du Dashboard.
-- [ ] Ajouter le système d'authentification.
-- [ ] Conteneuriser l'application (Docker) et déployer sur Proxmox.
+- [ ] Intégrer `yfinance` pour la récupération quotidienne des cours.
+- [ ] Coder l'interface Streamlit (connexion à l'API et création des vues du Dashboard).
+- [ ] Conteneuriser les services (API, Front, DB) avec Docker Compose.
+- [ ] Déployer sur Proxmox et configurer l'accès distant sécurisé (Reverse Proxy + SSL).

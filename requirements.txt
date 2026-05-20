@@ -6,3 +6,5 @@ python-dotenv
 pdfplumber
 yfinance
 streamlit
+pandas
+plotly

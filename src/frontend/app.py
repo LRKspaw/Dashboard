@@ -9,7 +9,7 @@ from src.backend.models import Actif, Transaction, HistoriquePrix, User, Fichier
 from src.backend.sync_yfincance import synchroniser_un_actif
 import plotly.graph_objects as go
 from src.frontend.auth_ui import afficher_formulaire_authentification
-from src.backend.calculs import calculer_historique_portefeuille_df, calculer_portefeuille
+from src.backend.calculs import calculer_historique_portefeuille_df, calculer_portefeuille, calculer_evolution_par_etf_df
 import hashlib
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -54,6 +54,11 @@ def charger_donnees(_db: Session, user_id: int):
 @st.cache_data(ttl=3600)
 def charger_evolution(_db: Session, user_id: int):
     return calculer_historique_portefeuille_df(_db, user_id)
+
+@st.cache_data(ttl=3600)
+def charger_evolution_par_etf(_db: Session, user_id: int):
+    return calculer_evolution_par_etf_df(_db, user_id)
+
 
 st.sidebar.header("Ingestion de Données")
 st.sidebar.write("Déposez vos avis d'opérés Fortuneo pour mettre à jour le dashboard.")
@@ -183,67 +188,64 @@ try:
             st.plotly_chart(fig_repartition, use_container_width=True)
             
         with col_graph2:
-            df_evolution = charger_evolution(db_view, CURRENT_USER_ID)
+            # Création des onglets pour séparer la vue globale de la vue détaillée
+            tab_global, tab_par_etf = st.tabs(["📊 Évolution Globale", "📈 Performance par ETF"])
             
-            if not df_evolution.empty:
+            with tab_global:
+                df_evolution = charger_evolution(db_view, CURRENT_USER_ID)
+                if not df_evolution.empty:
+                    # --- Ton code d'amorce forcé du jalon précédent ---
+                    premiere_date = df_evolution["Date"].min()
+                    date_amorce = pd.to_datetime(f"{premiere_date.year}-01-01")
+                    if premiere_date > date_amorce:
+                        df_amorce = pd.DataFrame([{"Date": date_amorce, "Capital Investi": 0.0, "Valorisation Réelle": 0.0, "Plus-Value": 0.0}])
+                        df_evolution = pd.concat([df_amorce, df_evolution], ignore_index=True)
+
+                    df_evolution = df_evolution.rename(columns={
+                        "Capital Investi": "Capital Investi (€)",
+                        "Valorisation Réelle": "Valorisation Réelle (€)"
+                    })
+
+                    fig_evolution = go.Figure()
+                    fig_evolution.add_trace(go.Scatter(x=df_evolution["Date"], y=df_evolution["Capital Investi (€)"], mode='lines', name='Capital Investi', line=dict(color='#A0A0A0', width=2, shape='hv'), fill='tozeroy', fillcolor='rgba(200, 200, 200, 0.05)'))
+                    fig_evolution.add_trace(go.Scatter(x=df_evolution["Date"], y=df_evolution["Valorisation Réelle (€)"], mode='lines', name='Valorisation Réelle', line=dict(color='#2E86C1', width=3)))
+                    
+                    fig_evolution.update_layout(
+                        hovermode="x unified",
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                        margin=dict(l=10, r=10, t=20, b=10),
+                        xaxis=dict(showgrid=True, gridcolor='rgba(128, 128, 128, 0.1)'),
+                        yaxis=dict(showgrid=True, gridcolor='rgba(128, 128, 128, 0.1)'),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                    )
+                    st.plotly_chart(fig_evolution, use_container_width=True)
+
+            with tab_par_etf:
+                df_etf = charger_evolution_par_etf(db_view, CURRENT_USER_ID)
                 
-                # --- TON IDÉE : FORCER LE POINT D'AMORCE ---
-                premiere_date = df_evolution["Date"].min()
-                date_amorce = pd.to_datetime(f"{premiere_date.year}-01-01")
-                
-                # Si le DataFrame ne commence pas exactement au 1er janvier, on l'injecte !
-                if premiere_date > date_amorce:
-                    df_amorce = pd.DataFrame([{
-                        "Date": date_amorce,
-                        "Capital Investi": 0.0,
-                        "Valorisation Réelle": 0.0,
-                        "Plus-Value": 0.0
-                    }])
-                    # On fusionne ce point zéro avec le reste de l'historique
-                    df_evolution = pd.concat([df_amorce, df_evolution], ignore_index=True)
-                # -------------------------------------------
-
-                df_evolution = df_evolution.rename(columns={
-                    "Capital Investi": "Capital Investi (€)",
-                    "Valorisation Réelle": "Valorisation Réelle (€)"
-                })
-
-                fig_evolution = go.Figure()
-
-                # Courbe 1 : Capital Investi
-                fig_evolution.add_trace(go.Scatter(
-                    x=df_evolution["Date"],
-                    y=df_evolution["Capital Investi (€)"],
-                    mode='lines',
-                    name='Capital Investi',
-                    line=dict(color='#A0A0A0', width=2, shape='hv'),
-                    fill='tozeroy',
-                    fillcolor='rgba(200, 200, 200, 0.05)'
-                ))
-
-                # Courbe 2 : Valorisation Réelle
-                fig_evolution.add_trace(go.Scatter(
-                    x=df_evolution["Date"],
-                    y=df_evolution["Valorisation Réelle (€)"],
-                    mode='lines',
-                    name='Valorisation Réelle',
-                    line=dict(color='#2E86C1', width=3)
-                ))
-
-                fig_evolution.update_layout(
-                    title="Évolution du Portefeuille vs. Capital Investi",
-                    hovermode="x unified",
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                    margin=dict(l=10, r=10, t=50, b=10),
-                    xaxis=dict(showgrid=True, gridcolor='rgba(128, 128, 128, 0.1)'),
-                    yaxis=dict(showgrid=True, gridcolor='rgba(128, 128, 128, 0.1)'),
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                )
-
-                st.plotly_chart(fig_evolution, use_container_width=True)
-    else:
-        st.info("Aucun actif trouvé dans le portefeuille. Veuillez glisser un PDF dans la barre latérale pour lancer le pipeline initial.")
+                if not df_etf.empty:
+                    # Création du graphique multi-courbes avec Plotly Express
+                    fig_etf = px.line(
+                        df_etf,
+                        x="Date",
+                        y="Valorisation (€)",
+                        color="ETF", # C'est cette ligne magique qui sépare les courbes par couleur !
+                        line_shape="linear"
+                    )
+                    
+                    fig_etf.update_layout(
+                        hovermode="x unified",
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                        margin=dict(l=10, r=10, t=20, b=10),
+                        xaxis=dict(showgrid=True, gridcolor='rgba(128, 128, 128, 0.1)'),
+                        yaxis=dict(showgrid=True, gridcolor='rgba(128, 128, 128, 0.1)'),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                    )
+                    st.plotly_chart(fig_etf, use_container_width=True)
+                else:
+                    st.info("Aucune donnée historique disponible pour tracer le graphique par ETF.")
 
 finally:
     db_view.close()

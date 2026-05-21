@@ -136,3 +136,69 @@ def calculer_historique_portefeuille_df(db: Session, user_id: int) -> pd.DataFra
         })
     
     return pd.DataFrame(records)
+
+def calculer_evolution_par_etf_df(db: Session, user_id: int) -> pd.DataFrame:
+    """
+    Calcule l'historique quotidien de la valorisation individualisée de chaque ETF.
+    Retourne un DataFrame au format long idéal pour Plotly Express (Date, ETF, Valorisation).
+    """
+    transactions = db.query(Transaction).filter(Transaction.user_id == user_id).order_by(Transaction.date).all()
+
+    if not transactions:
+        return pd.DataFrame(columns=["Date", "ETF", "Valorisation (€)"])
+
+    # 1. Cartographie des IDs d'actifs vers leurs noms réels d'ETF
+    actifs = db.query(Actif).all()
+    actifs_map = {a.id: a.nom_etf for a in actifs}
+
+    # 2. Gestion de la chronologie (Ancrage au 1er janvier comme demandé)
+    date_premier_achat = transactions[0].date
+    start_date = date(date_premier_achat.year, 1, 1)
+    end_date = datetime.now().date()
+    date_range = pd.date_range(start=start_date, end=end_date, freq='D').date
+
+    # 3. Chargement de l'historique des prix en mémoire
+    prix_history = db.query(HistoriquePrix).order_by(HistoriquePrix.date).all()
+    prices_map = {(p.actif_id, p.date): float(p.prix) for p in prix_history}
+
+    records = []
+
+    # 4. Identification des actifs uniques pour forcer le point d'amorce à 0€ au 1er Janvier
+    actifs_uniques = set(t.actif_id for t in transactions if t.actif_id)
+    for actif_id in actifs_uniques:
+        records.append({
+            "Date": pd.to_datetime(start_date),
+            "ETF": actifs_map.get(actif_id, f"Actif {actif_id}"),
+            "Valorisation (€)": 0.0
+        })
+
+    # 5. Évolution quotidienne par actif
+    for current_date in date_range:
+        if current_date == start_date:
+            continue # Déjà couvert par le point d'amorce
+
+        tx_au_jour_j = [t for t in transactions if t.date <= current_date]
+        assets_quantites = {}
+
+        # Calcul des quantités cumulées pour ce jour précis
+        for tx in tx_au_jour_j:
+            if tx.operation_type == "Achat":
+                assets_quantites[tx.actif_id] = assets_quantites.get(tx.actif_id, 0) + float(tx.quantity)
+
+        # Calcul de la valorisation de chaque ligne active
+        for actif_id, quantite in assets_quantites.items():
+            if quantite > 0:
+                prix = prices_map.get((actif_id, current_date))
+
+                # Gestion des jours sans cotation (week-end/jours fériés)
+                if prix is None:
+                    historique_actif = [p for (a_id, d), p in prices_map.items() if a_id == actif_id and d <= current_date]
+                    prix = historique_actif[-1] if historique_actif else 0.0
+
+                records.append({
+                    "Date": pd.to_datetime(current_date),
+                    "ETF": actifs_map.get(actif_id, f"Actif {actif_id}"),
+                    "Valorisation (€)": quantite * prix
+                })
+
+    return pd.DataFrame(records)

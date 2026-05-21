@@ -47,9 +47,17 @@ if "fichiers_traites" not in st.session_state:
 def charger_donnees(_db: Session, user_id: int):
     donnees = []
 
-    actifs = _db.query(Actif).all()
-    for actif in actifs:
-        achats = _db.query(Transaction).filter_by(actif_id=actif.id, operation_type="Achat").all()
+    actiff_ids_user = _db.query(Transaction.actif_id)\
+                        .filter(Transaction.user_id==user_id)\
+                        .distinct()\
+                        .all()
+    actif_ids = [r[0] for r in actiff_ids_user if r[0] is not None]
+    for actif_id in actif_ids:
+        actif = _db.query(Actif).filter_by(id=actif_id).first()
+        if not actif:
+            continue
+
+        achats = _db.query(Transaction).filter_by(actif_id=actif.id, operation_type="Achat", user_id=user_id).all()
 
         if not achats:
             continue
@@ -77,7 +85,7 @@ def charger_donnees(_db: Session, user_id: int):
 
 @st.cache_data(ttl=3600)
 def charger_evolution(_db: Session, user_id: int):
-    achats = _db.query(Transaction).filter_by(operation_type="Achat").order_by(Transaction.date).all()
+    achats = _db.query(Transaction).filter_by(operation_type="Achat", user_id=user_id).order_by(Transaction.date).all()
 
     if not achats:
         return pd.DataFrame()

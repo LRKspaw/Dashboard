@@ -1,10 +1,12 @@
 import requests
 import yfinance as yf
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from sqlalchemy.orm import Session
 from src.backend.database import engine
 from src.backend.models import Actif, HistoriquePrix
+from sqlalchemy import func
+from src.backend.models import Actif, HistoriquePrix, Transaction
 
 
 def synchroniser_un_actif(actif_isin: str, db: Session):
@@ -20,10 +22,41 @@ def synchroniser_un_actif(actif_isin: str, db: Session):
         db.flush()
     
     if actif.ticker_yfinance != "A_DEFINIR" :
+
+        premier_achat = db.query(func.min(Transaction.date)).filter(Transaction.actif_id==actif.id).scalar()
+
+        if premier_achat: 
+            start_date_yf = premier_achat.strftime('%Y-%m-%d')
+        else:
+            start_date_yf = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
         ticker = yf.Ticker(actif.ticker_yfinance)
-        historique = ticker.history(period="1d")
+        historique = ticker.history(start=start_date_yf)
 
         if not historique.empty:
+
+            dates_existantes = db.query(HistoriquePrix.date).filter(HistoriquePrix.actif_id==actif.id).all()
+            dates_existantes_set = {d[0] for d in dates_existantes}
+
+            nouveau_prix = []
+
+            for index, row in historique.iterrows():
+                date_prix = index.date()
+                prix_cloture = float(row['Close'])
+
+                if date_prix not in dates_existantes_set:
+                    nouveau_prix.append(
+                        HistoriquePrix(
+                            actif_id=actif.id,
+                            date=date_prix,
+                            prix=prix_cloture
+                        )
+                    )
+                    dates_existantes_set.add(date_prix)
+
+            if nouveau_prix:
+                db.add_all(nouveau_prix)
+                db.flush()
+            
             dernier_prix = float(historique['Close'].iloc[-1])
 
             nouveau_prix = HistoriquePrix(

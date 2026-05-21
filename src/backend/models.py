@@ -17,6 +17,7 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="user")
+    fichiers_importes: Mapped[list["FichierImporte"]] = relationship(back_populates="user")
 
 class Actif(Base): 
     __tablename__ = "actifs"
@@ -55,3 +56,14 @@ class HistoriquePrix(Base):
     prix: Mapped[float] = mapped_column(Numeric(10, 4))
 
     actif: Mapped["Actif"] = relationship(back_populates="historique_prix")
+
+class FichierImporte(Base):
+    __tablename__ = "fichiers_importes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    nom_fichier: Mapped[str] = mapped_column(String(255))
+    hash_md5: Mapped[str] = mapped_column(String(64), index=True)
+    date_import: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+    user: Mapped["User"] = relationship(back_populates="fichiers_importes")

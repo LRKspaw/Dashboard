@@ -7,6 +7,8 @@ from src.backend.database import engine
 from src.backend.parser import sauvegarder_en_base
 from src.backend.models import Actif, Transaction, HistoriquePrix, User
 from src.backend.sync_yfincance import synchroniser_un_actif
+from src.frontend.auth_ui import afficher_formulaire_authentification
+
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -17,7 +19,26 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-CURRENT_USER_ID = 1
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+    st.session_state.user_id = None
+    st.session_state.user_email = None
+
+if not st.session_state.authenticated:
+    afficher_formulaire_authentification()
+    st.stop()
+
+CURRENT_USER_ID = st.session_state.user_id
+
+with st.sidebar:
+    st.write(f"Connecté en tant que : {st.session_state.user_email}")
+
+    if st.button("Se déconnecter", use_container_width=True):
+        st.session_state.authenticated = False
+        st.session_state.user_id = None
+        st.session_state.user_email = None
+        st.cache_data.clear()
+        st.rerun()
 
 if "fichiers_traites" not in st.session_state:
     st.session_state.fichiers_traites = set()

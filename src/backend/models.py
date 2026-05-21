@@ -1,16 +1,19 @@
 from datetime import date, datetime
 from typing import Optional
-from sqlalchemy import String, DateTime, ForeignKey, Date, Numeric
+from sqlalchemy import Column, String, DateTime, ForeignKey, Date, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
+import os 
+import hashlib
 from src.backend.database import Base
+
 
 class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    hashed_password: Mapped[str] = mapped_column(String(255))
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    salt: Mapped[str] = mapped_column(String(255), nullable=True)  
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="user")

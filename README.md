@@ -42,3 +42,5 @@ Une application web complète pour suivre, analyser et projeter les performances
 - [ ] Coder l'interface Streamlit (connexion à l'API et création des vues du Dashboard).
 - [ ] Conteneuriser les services (API, Front, DB) avec Docker Compose.
 - [ ] Déployer sur Proxmox et configurer l'accès distant sécurisé (Reverse Proxy + SSL).
+
+MRC

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from src.backend.database import engine, Base
-from src.backend.models import User  # Import absolu conforme
+from src.backend.models import User  
 
 print("Connexion à la base de données...")
 Base.metadata.create_all(bind=engine)

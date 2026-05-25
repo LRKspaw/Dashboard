@@ -1,7 +1,7 @@
 DC=docker compose
 APP_NAME=pea-dashboard
 
-LXC_SSH=dev@192.168.1.35     
+LXC_SSH=dev@192.168.1.35
 LXC_DIR=/opt/dashboard-pea
 
 .PHONY: help build up down restart logs clean status init-db deploy

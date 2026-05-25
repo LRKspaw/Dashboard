@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import Optional
-from sqlalchemy import Column, String, DateTime, ForeignKey, Date, Numeric
+from sqlalchemy import Column, String, DateTime, ForeignKey, Date, Numeric, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import os 
 import hashlib
@@ -15,6 +15,8 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     salt: Mapped[str] = mapped_column(String(255), nullable=True)  
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    mfa_secret: Mapped[str] = mapped_column(String(255), nullable=True)
+    mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="user")
     fichiers_importes: Mapped[list["FichierImporte"]] = relationship(back_populates="user")

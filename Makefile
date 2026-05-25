@@ -1,10 +1,8 @@
-# Variables existantes
 DC=docker compose
 APP_NAME=pea-dashboard
 
-# --- NOUVELLES VARIABLES POUR TON PROXMOX ---
-LXC_SSH=root@192.168.1.XX      # Remplplace par l'IP ou le nom SSH de ton LXC
-LXC_DIR=/opt/dashboard-pea     # Le dossier cible dans ton conteneur LXC
+LXC_SSH=dev@192.168.1.35     
+LXC_DIR=/opt/dashboard-pea
 
 .PHONY: help build up down restart logs clean status init-db deploy
 
@@ -36,10 +34,9 @@ clean: ## Nettoyer les images et volumes résiduels Docker
 	$(DC) down --v
 	docker system prune -f
 
-# --- LA COMMANDE DE DÉPLOIEMENT DIRECT ---
 deploy: ## Déployer le code sur le conteneur LXC Proxmox via SSH
 	@echo "Synchronisation du code vers le LXC..."
-	rsync -avz --exclude='.git' --exclude='__pycache__' --exclude='data/' ./ $(LXC_SSH):$(LXC_DIR)/
+	rsync -avz --exclude='.git' --exclude='__pycache__' --exclude='data/' ./ $(LXC_SSH):$(LXC_DIR)
 	@echo "Relancement des conteneurs à distance..."
 	ssh $(LXC_SSH) "cd $(LXC_DIR) && make build && make restart"
 	@echo "Application mise à jour avec succès !"

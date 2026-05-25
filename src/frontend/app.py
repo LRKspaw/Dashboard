@@ -176,11 +176,10 @@ try:
         col_graph1, col_graph2 = st.columns(2)
 
         with col_graph1:
-            # Le camembert utilise les clés brutes de details_actifs contenues dans df_repatrition
             fig_repartition = px.pie(
                 df_repatrition, 
                 values="Valeur Actuelle", 
-                names="Nom", # Nom de ta clé dans calculs.py
+                names="Nom",
                 hole=0.4,
                 title="Répartition par ETF"
             )
@@ -188,24 +187,26 @@ try:
             st.plotly_chart(fig_repartition, use_container_width=True)
             
         with col_graph2:
-            # Création des onglets pour séparer la vue globale de la vue détaillée
             tab_global, tab_par_etf = st.tabs(["📊 Évolution Globale", "📈 Performance par ETF"])
             
             with tab_global:
                 df_evolution = charger_evolution(db_view, CURRENT_USER_ID)
                 if not df_evolution.empty:
-                    # --- Ton code d'amorce forcé du jalon précédent ---
                     premiere_date = df_evolution["Date"].min()
-                    date_amorce = pd.to_datetime(f"{premiere_date.year}-01-01")
+                    date_amorce = premiere_date.to_period('M').to_timestamp()
                     if premiere_date > date_amorce:
                         df_amorce = pd.DataFrame([{"Date": date_amorce, "Capital Investi": 0.0, "Valorisation Réelle": 0.0, "Plus-Value": 0.0}])
                         df_evolution = pd.concat([df_amorce, df_evolution], ignore_index=True)
-
-                    df_evolution = df_evolution.rename(columns={
-                        "Capital Investi": "Capital Investi (€)",
-                        "Valorisation Réelle": "Valorisation Réelle (€)"
-                    })
-
+                    else:
+                        df_evolution = df_evolution.rename(columns={
+                            "Capital Investi": "Capital Investi (€)",
+                            "Valorisation Réelle": "Valorisation Réelle (€)"
+                        })
+                    if "Capital Investi" in df_evolution.columns:
+                        df_evolution = df_evolution.rename(columns={
+                            "Capital Investi": "Capital Investi (€)",
+                            "Valorisation Réelle": "Valorisation Réelle (€)"
+                        })
                     fig_evolution = go.Figure()
                     fig_evolution.add_trace(go.Scatter(x=df_evolution["Date"], y=df_evolution["Capital Investi (€)"], mode='lines', name='Capital Investi', line=dict(color='#A0A0A0', width=2, shape='hv'), fill='tozeroy', fillcolor='rgba(200, 200, 200, 0.05)'))
                     fig_evolution.add_trace(go.Scatter(x=df_evolution["Date"], y=df_evolution["Valorisation Réelle (€)"], mode='lines', name='Valorisation Réelle', line=dict(color='#2E86C1', width=3)))

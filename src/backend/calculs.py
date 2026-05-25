@@ -82,7 +82,7 @@ def calculer_historique_portefeuille_df(db: Session, user_id: int) -> pd.DataFra
     # On récupère la date de la toute première transaction
     date_premier_achat = transactions[0].date
     # On force le départ au 1er jour (1er) du 1er mois (Janvier) de cette même année
-    start_date = date(date_premier_achat.year, 1, 1)
+    start_date = date(date_premier_achat.year, date_premier_achat.month, 1)
     
     # Si tu préférais le 1er jour du MOIS de l'achat plutôt que de l'année, il suffirait de mettre :
     # start_date = date(date_premier_achat.year, date_premier_achat.month, 1)
@@ -147,13 +147,11 @@ def calculer_evolution_par_etf_df(db: Session, user_id: int) -> pd.DataFrame:
     if not transactions:
         return pd.DataFrame(columns=["Date", "ETF", "Valorisation (€)"])
 
-    # 1. Cartographie des IDs d'actifs vers leurs noms réels d'ETF
     actifs = db.query(Actif).all()
     actifs_map = {a.id: a.nom_etf for a in actifs}
 
-    # 2. Gestion de la chronologie (Ancrage au 1er janvier comme demandé)
     date_premier_achat = transactions[0].date
-    start_date = date(date_premier_achat.year, 1, 1)
+    start_date = date(date_premier_achat.year, date_premier_achat.month, 1)
     end_date = datetime.now().date()
     date_range = pd.date_range(start=start_date, end=end_date, freq='D').date
 

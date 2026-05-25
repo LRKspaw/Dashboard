@@ -13,18 +13,23 @@ from src.backend.models import User, Actif, Transaction
 from datetime import datetime
 
 
-def parse_avis_operation(file_source: Union[str, Path, BinaryIO]) -> dict:
-    """Fonction de parsing d'un avis d'opération PDF pour extraire les transactions.
+from pathlib import Path
+import pdfplumber
+import os
+import re
+from typing import Union, BinaryIO
+from sqlalchemy.orm import Session
+from src.backend.database import engine
+from src.backend.models import User, Actif, Transaction
+from datetime import datetime
+
+def parse_avis_operation(file_source: Union[str, Path, BinaryIO]) -> list:
+    """Fonction de parsing d'un avis d'opération PDF pour extraire les transactions (ETFs et Actions).
+    
     Args:
         file_source (Union[str, Path, BinaryIO]): Chemin vers le fichier PDF ou objet binaire du PDF.
     Returns:
-        dict: Dictionnaire contenant les transactions extraites.
-            "date": Date de la transaction (format YYYY-MM-DD)
-            "nom": Nom de l'ETF
-            "isin": Code ISIN de l'ETF
-            "quantite": Quantité achetée
-            "prix_unitaire": Prix unitaire de l'ETF
-            "frais": Frais associés à la transaction
+        list: Liste de dicationnaires contenant les transactions extraites.
     """
     operations = []
     with pdfplumber.open(file_source) as pdf:
@@ -32,15 +37,16 @@ def parse_avis_operation(file_source: Union[str, Path, BinaryIO]) -> dict:
         for page in pdf.pages:
             texte_complet += page.extract_text() + "\n"
     
-    blocs_etf = texte_complet.split("TRACKER :")[1:] 
+    blocs_actifs = re.split(r'(?=(?:TRACKER|ACTION)\s*:)', texte_complet)
+    blocs_actifs = [b for b in blocs_actifs if "TRACKER :" in b or "ACTION :" in b]
     
-    for bloc in blocs_etf:
-        actif_match = re.search(r"(.*?)\s*\(([A-Z0-9]{12})\)", bloc)
+    for bloc in blocs_actifs:
+        actif_match = re.search(r'(?:TRACKER|ACTION)\s*:\s*(.*?)\s*\(([A-Z0-9]{12})\)', bloc)
         
         if not actif_match:
             continue
             
-        nom_etf = actif_match.group(1).strip()
+        nom_actif = actif_match.group(1).strip()
         isin = actif_match.group(2)
 
         dates = re.findall(r"(\d{2}-\d{2}-\d{4})\s+Référence", bloc)
@@ -53,7 +59,7 @@ def parse_avis_operation(file_source: Union[str, Path, BinaryIO]) -> dict:
                 
                 operation = {
                     "date": f"{annee}-{mois}-{jour}",
-                    "nom": nom_etf,
+                    "nom": nom_actif,
                     "isin": isin,
                     "quantite": int(quantites_cours[i][0]),
                     "prix_unitaire": float(quantites_cours[i][1].replace(",", ".")),
@@ -61,8 +67,9 @@ def parse_avis_operation(file_source: Union[str, Path, BinaryIO]) -> dict:
                 }
                 operations.append(operation)
             except IndexError:
-                print(f"Erreur de lecture sur une ligne de {nom_etf}")
-            
+                print(f"Erreur de lecture sur une ligne de {nom_actif}")
+                
+    print(f"[PARSER] {len(operations)} transaction(s) extraite(s).")
     return operations
 
 
@@ -133,3 +140,4 @@ def sauvegarder_en_base(file_source: Union[str, Path, BinaryIO], db: Session, us
     except Exception as e:
         db.rollback()
         raise RuntimeError(f"Erreur lors de l'enregistrement des transactions : {str(e)}")
+

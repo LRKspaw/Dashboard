@@ -2,6 +2,16 @@ import os
 import hashlib
 from sqlalchemy.orm import Session
 from src.backend.models import User
+import re
+
+EMAIL_REGEX = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+PASSWORD_REGEX = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$'
+
+def valider_synthaxe_email(email: str) -> bool:
+     return bool(re.match(EMAIL_REGEX, email))
+
+def valider_md(password: str) -> bool:
+     return bool(re.match(PASSWORD_REGEX, password))
 
 def hash_password(password: str, salt: bytes = None) -> tuple[str, str]:
         """

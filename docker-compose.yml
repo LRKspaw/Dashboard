@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  pea-dashboard:
+    build:
+      context: .
+      target: runner
+    container_name: pea_dashboard_app
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      - DATABASE_URL=sqlite:////app/data/pea_tracker.db
+    volumes:
+      - ./data:/app/data
+    networks:
+      - pea-network
+
+networks:
+  pea-network:
+    driver: bridge
